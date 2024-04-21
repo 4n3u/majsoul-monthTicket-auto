@@ -31,13 +31,13 @@ async def main():
 
 async def connect():
     async with aiohttp.ClientSession() as session:
-        async with session.get("{}/version.json".format(MS_HOST)) as res:
+        async with session.get("{}version.json".format(MS_HOST)) as res:
             version = await res.json()
             logging.info(f"Version: {version}")
             version = version["version"]
             version_to_force = version.replace(".w", "")
 
-        async with session.get("{}/v{}/config.json".format(MS_HOST, version)) as res:
+        async with session.get("{}v{}/config.json".format(MS_HOST, version)) as res:
             config = await res.json()
             logging.info(f"Config: {config}")
 
