@@ -2,12 +2,12 @@
 ![image](https://github.com/4n3u/majsoul-monthTicket-auto/assets/167657823/89844790-9a47-40b7-8e65-ed07430f3917)
 ![image](https://github.com/4n3u/majsoul-monthTicket-auto/assets/167657823/720689fa-7237-4d85-8979-c3e768c7f1d9)
 
-このプロジェクトは、GitHub Actionsを使用して毎日のログインを自動化し、麻雀魂での出席成果（8ビットリーチBGM）を達成し、毎日の運気アップのお守りを受け取るためのものです。  
+このプロジェクトは、GitHub Actionsを使用して毎日のログインを自動化し、雀魂での出席成果（8ビットリーチBGM）を達成し、毎日の運気アップのお守りを受け取るためのものです。  
 このプロジェクトは[mahjong_soul_api](https://github.com/MahjongRepository/mahjong_soul_api)に基づいています。
 <br/><br/>
 ## 事前準備
 
-1. ブラウザで麻雀魂にアクセスします。
+1. ブラウザで雀魂にアクセスします。
 2. `F12`を押して開発者モードを開きます。
 3. `Network`タブに移動し、`login`と検索します。
 4. 検索結果に表示されるxhrまたはfetch形式のloginファイルのペイロードを確認します。
@@ -27,9 +27,9 @@
 <br/><br/>
 ## テスト方法
 
-1. ブラウザで麻雀魂にログインします。
+1. ブラウザで雀魂にログインします。
 2. `Actions > Workflows`タブで`Run workflow`をクリックします。
-3. 正常に動作すれば、二重接続のため麻雀魂のブラウザセッションが強制的に終了されます。
+3. 正常に動作すれば、二重接続のため雀魂のブラウザセッションが強制的に終了されます。
 <br/><br/>
 ## 注意事項
 
