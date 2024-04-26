@@ -64,7 +64,6 @@ async def connect():
             },
         ) as res:
             passport = await res.json()
-            logging.info(f"Passport: {passport}")
             accessTokenFromPassport = passport["accessToken"]
 
     logging.info(f"Chosen endpoint: {endpoint}")
