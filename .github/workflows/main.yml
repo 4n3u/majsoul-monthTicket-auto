@@ -2,7 +2,7 @@ name: Login to Majsoul
 
 on:
   schedule:
-    - cron: '5 21 * * *'  # UTC 시간으로 21시 5분 (한국 시간 오전 6시 5분)
+    - cron: '5 21 * * *'  # 21:05 UTC time (6:05 a.m. Korean time)
   workflow_dispatch:
 
 jobs:
@@ -24,3 +24,6 @@ jobs:
 
     - name: Execute main.py
       run: python main.py
+      env:
+        UID: ${{ secrets.UID }}
+        TOKEN: ${{ secrets.TOKEN }}
