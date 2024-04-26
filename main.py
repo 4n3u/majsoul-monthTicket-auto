@@ -4,6 +4,7 @@ import random
 import uuid
 import json
 import aiohttp
+import os
 
 from ms.base import MSRPCChannel
 from ms.rpc import Lobby
