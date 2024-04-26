@@ -121,7 +121,6 @@ async def login(lobby, version_to_force, accessTokenFromPassport):
     reqOauth2Login.currency_platforms.append(2)
 
     resOauth2Login = await lobby.oauth2_login(reqOauth2Login)
-    logging.info(f"Login response: {resOauth2Login}")
 
     reqPayMonthTicket = pb.ReqCommon()
     resPayMonthTicket = await lobby.pay_month_ticket(reqPayMonthTicket)
