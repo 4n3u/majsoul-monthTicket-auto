@@ -35,3 +35,7 @@
 
 - GitHub Actionsは、予定された時間から最大30分の遅延が発生することがあります。これはGitHubのサーバー負荷によって異なります。
 - 他人に`token`や`uid`が公開されないように注意してください。
+- GitHub Actionsは60日間リポジトリに更新がないと無効化されます。再度有効にするには、Actionsで`Enable workflow`をクリックしてください。
+
+  ![image](https://github.com/4n3u/majsoul-monthTicket-auto/assets/167657823/87f5cd6f-b08a-409c-80b7-d822a224f1cc)
+
