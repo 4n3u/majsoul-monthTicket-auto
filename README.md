@@ -37,3 +37,7 @@ This project is based on the [mahjong_soul_api](https://github.com/MahjongReposi
 
 - GitHub Actions can be delayed by up to 30 minutes beyond the scheduled time due to server load on GitHub.
 - Be cautious not to disclose your `token` and `uid` to others.
+- GitHub Actions will be disabled if there are no repository updates for 60 days. Please click `Enable workflow` in Actions to reactivate it.
+  
+  ![image](https://github.com/4n3u/majsoul-monthTicket-auto/assets/167657823/fa01c1d0-ae9c-4d97-8430-808a2b06c329)
+
