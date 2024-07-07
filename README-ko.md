@@ -35,3 +35,7 @@
 
 - GitHub Actions는 지정된 스케줄보다 최대 30분 정도 지연될 수 있습니다. 이는 GitHub의 서버 부하에 따라 달라질 수 있습니다.
 - 타인에게 `token` 및 `uid`가 공개되지 않도록 주의해주세요.
+- Github Action은 60일동안 저장소 업데이트가 없으면 워크플로우가 비활성화됩니다. Action에서 Enable workflow를 눌러 다시 활성화시켜 주세요.
+
+  ![image](https://github.com/4n3u/majsoul-monthTicket-auto/assets/167657823/28e1c8c1-5f4b-4bd4-837a-2c19ae7d3eb5)
+
