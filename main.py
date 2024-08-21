@@ -15,7 +15,7 @@ token = os.getenv("TOKEN", "default_token")
 
 deviceId = f"web|{uid}"
 
-MS_HOST = "https://game.mahjongsoul.com/"
+MS_HOST = "https://mahjongsoul.game.yo-star.com/"
 PASSPORT_HOST = "https://passport.mahjongsoul.com/"
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s: %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
