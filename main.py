@@ -13,6 +13,8 @@ import ms.protocol_pb2 as pb
 uid = os.getenv("UID", "default_uid")
 token = os.getenv("TOKEN", "default_token")
 
+# updateTemp
+
 deviceId = f"web|{uid}"
 
 MS_HOST = "https://mahjongsoul.game.yo-star.com/"
