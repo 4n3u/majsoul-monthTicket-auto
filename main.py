@@ -13,7 +13,7 @@ import ms.protocol_pb2 as pb
 uid = os.getenv("UID", "default_uid")
 token = os.getenv("TOKEN", "default_token")
 
-# updateTemp
+# 작동유지 주석 20241009
 
 deviceId = f"web|{uid}"
 
