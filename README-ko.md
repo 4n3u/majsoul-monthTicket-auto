@@ -20,10 +20,11 @@
 3. `Repository secrets`에서 `New repository secret`을 클릭하세요.
 4. `Name`에는 `UID`, `Secret`에는 사전 작업에서 메모해둔 `uid` 값을 입력하고 `Add secret`을 클릭하세요.
 5. 새로운 Repository secret을 만들고 `Name`에는 `TOKEN`, `Secret`에는 사전 작업에서 메모해둔 `token` 값을 입력한 뒤 `Add secret`을 클릭하세요.
-6. 서버의 기본 위치는 JP 서버로 설정되어 있습니다. EN 서버로 변경하고 싶다면 `main.py`의 `MS_HOST` 값을 `https://mahjongsoul.game.yo-star.com/`로 수정하세요.
-7. 기본 접속 시간은 한국 시간 기준 매일 오전 6시 5분으로 설정되어 있습니다. 변경하고 싶다면 `.github/workflows/main.yml`에서 `cron` 값을 수정하세요.
-8. 상단의 `Actions` 탭으로 들어가 `I understand my workflows, go ahead and enable them` 버튼을 눌러 워크플로우를 활성화하세요.
-9. 좌측 `Workflows`에서 `Login to Majsoul` 탭으로 접속해 `Enable workflow`를 클릭하세요.
+6. `Settings > Actions > General`로 이동하여 `Workflow permissions`를 `Read and write permissions`로 설정하세요.
+7. 서버의 기본 위치는 JP 서버로 설정되어 있습니다. EN 서버로 변경하고 싶다면 `main.py`의 `MS_HOST` 값을 `https://mahjongsoul.game.yo-star.com/`로 수정하세요.
+8. 기본 접속 시간은 한국 시간 기준 매일 오전 6시 5분으로 설정되어 있습니다. 변경하고 싶다면 `.github/workflows/main.yml`에서 `cron` 값을 수정하세요.
+9. 상단의 `Actions` 탭으로 들어가 `I understand my workflows, go ahead and enable them` 버튼을 눌러 워크플로우를 활성화하세요.
+10. 좌측 `Workflows`에서 `Login to Majsoul` 탭으로 접속해 `Enable workflow`를 클릭하세요.
 <br/><br/>
 ## 테스트 방법
 

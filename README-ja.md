@@ -20,10 +20,11 @@
 3. `New repository secret`をクリックします。
 4. `Name`には`UID`を、`Secret`には事前にメモした`uid`の値を入力して、`Add secret`をクリックします。
 5. 別のRepository secretを作成し、`Name`には`TOKEN`、`Secret`には事前にメモした`token`の値を入力して、`Add secret`をクリックします。
-6. デフォルトのサーバー位置はJPサーバーに設定されています。ENサーバーに変更したい場合は、`main.py`の`MS_HOST`の値を`https://mahjongsoul.game.yo-star.com/`に変更してください。
-7. デフォルトの接続時間は毎日の韓国時間午前6時5分に設定されています。変更したい場合は、`.github/workflows/main.yml`の`cron`の値を修正してください。
-8. 上部の`Actions`タブに進み、`I understand my workflows, go ahead and enable them`ボタンをクリックしてワークフローを有効にします。
-9. 左側の`Workflows`から`Login to Majsoul`タブに進み、`Enable workflow`をクリックします。
+6. `Settings > Actions > General`に移動し、`Workflow permissions`を`Read and write permissions`に設定します。
+7. デフォルトのサーバー位置はJPサーバーに設定されています。ENサーバーに変更したい場合は、`main.py`の`MS_HOST`の値を`https://mahjongsoul.game.yo-star.com/`に変更してください。
+8. デフォルトの接続時間は毎日の韓国時間午前6時5分に設定されています。変更したい場合は、`.github/workflows/main.yml`の`cron`の値を修正してください。
+9. 上部の`Actions`タブに進み、`I understand my workflows, go ahead and enable them`ボタンをクリックしてワークフローを有効にします。
+10. 左側の`Workflows`から`Login to Majsoul`タブに進み、`Enable workflow`をクリックします。
 <br/><br/>
 ## テスト方法
 
