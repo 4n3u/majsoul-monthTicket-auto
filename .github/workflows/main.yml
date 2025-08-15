@@ -27,3 +27,14 @@ jobs:
       env:
         UID: ${{ secrets.UID }}
         TOKEN: ${{ secrets.TOKEN }}
+
+    - name: Update Keep-Alive File
+      run: |
+        echo "Last run: $(date)" > keep_alive.txt
+        git config --global user.name "github-actions[bot]"
+        git config --global user.email "github-actions[bot]@users.noreply.github.com"
+        git add keep_alive.txt
+        git commit -m "Keep-alive: Update timestamp"
+        git push
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
