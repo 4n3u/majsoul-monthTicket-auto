@@ -42,16 +42,17 @@ async def connect():
             config = await res.json()
             logging.info(f"Config: {config}")
 
-            url = config["ip"][0]["region_urls"][0]["url"]
+            url = config["ip"][0]["gateways"][0]["url"]
             passport_url = config["yo_service_url"][0]
             print(passport_url)
 
-        async with session.get(url + "?service=ws-gateway&protocol=ws&ssl=true") as res:
-            servers = await res.json()
-            # mjjpgs.mahjongsoul.com:9663
+        async with session.get(url + "/api/clientgate/routes") as res:
+            json_data = await res.json()
+            servers = [route['domain'] for route in json_data['data']['routes']]
+
+            # jpgs.mahjongsoul.com:443
             logging.info(f"Available servers: {servers}")
 
-            servers = servers["servers"]
             server = random.choice(servers)
             endpoint = "wss://{}/gateway".format(server)
 
