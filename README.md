@@ -17,7 +17,7 @@ This project is based on the [mahjong_soul_api](https://github.com/MahjongReposi
 <br/><br/>
 ## Setup Instructions
 
-1. Fork this project on GitHub.
+1. Fork this project on GitHub..
 2. Navigate to `Settings > Secrets and variables > Actions` in your forked project.
 3. Click `New repository secret`.
 4. For `Name`, enter `UID`, and for `Secret`, enter the `uid` value noted earlier, then click `Add secret`.
