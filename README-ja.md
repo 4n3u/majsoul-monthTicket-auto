@@ -2,6 +2,8 @@
 ![image](https://github.com/4n3u/majsoul-monthTicket-auto/assets/167657823/89844790-9a47-40b7-8e65-ed07430f3917)
 ![image](https://github.com/4n3u/majsoul-monthTicket-auto/assets/167657823/720689fa-7237-4d85-8979-c3e768c7f1d9)
 
+![](https://dcbadge.limes.pink/api/shield/245702966085025802?compact=true)
+
 このプロジェクトは、GitHub Actionsを使用して毎日のログインを自動化し、雀魂での出席成果（8ビットリーチBGM）を達成し、毎日の運気アップのお守りを受け取るためのものです。  
 このプロジェクトは[mahjong_soul_api](https://github.com/MahjongRepository/mahjong_soul_api)に基づいています。
 <br/><br/>

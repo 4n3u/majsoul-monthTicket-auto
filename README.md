@@ -2,7 +2,9 @@
 ![image](https://github.com/4n3u/majsoul-monthTicket-auto/assets/167657823/89844790-9a47-40b7-8e65-ed07430f3917)
 ![image](https://github.com/4n3u/majsoul-monthTicket-auto/assets/167657823/720689fa-7237-4d85-8979-c3e768c7f1d9)
 
-[日本語](https://github.com/4n3u/majsoul-monthTicket-auto/blob/main/README-ja.md) [한국어](https://github.com/4n3u/majsoul-monthTicket-auto/blob/main/README-ko.md)
+![](https://dcbadge.limes.pink/api/shield/245702966085025802?compact=true)
+
+[日本語](https://github.com/4n3u/majsoul-monthTicket-auto/blob/main/README-ja.md) [한국어](https://github.com/4n3u/majsoul-monthTicket-auto/blob/main/README-ko.md) [中文](https://github.com/4n3u/majsoul-monthTicket-auto/blob/main/README-zh.md)
 
 This project automates daily logins to Majsoul to achieve the attendance achievement (8bit Riichi BGM) and collect the daily Fortune Charm using GitHub Actions.  
 This project is based on the [mahjong_soul_api](https://github.com/MahjongRepository/mahjong_soul_api).

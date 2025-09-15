@@ -2,6 +2,8 @@
 ![image](https://github.com/4n3u/majsoul-monthTicket-auto/assets/167657823/89844790-9a47-40b7-8e65-ed07430f3917)
 ![image](https://github.com/4n3u/majsoul-monthTicket-auto/assets/167657823/720689fa-7237-4d85-8979-c3e768c7f1d9)
 
+![](https://dcbadge.limes.pink/api/shield/245702966085025802?compact=true)
+
 이 프로젝트는 작혼에서 출석 업적(8bit 리치 BGM)을 달성하고, 매일 운수대통 부적을 수령하기 위해 GitHub Actions를 사용하여 자동으로 로그인하는 기능을 제공합니다.  
 이 프로젝트는 [mahjong_soul_api](https://github.com/MahjongRepository/mahjong_soul_api)를 기반으로 하고 있습니다.
 <br/><br/>
