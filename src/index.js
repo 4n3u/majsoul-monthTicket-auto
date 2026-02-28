@@ -100,10 +100,12 @@ function loadProtoTypes(liqiJson) {
   return {
     Wrapper: root.lookupType('Wrapper'),
     ReqHeatBeat: root.lookupType('lq.ReqHeatBeat'),
+    ReqAccountInfo: root.lookupType('lq.ReqAccountInfo'),
     ReqOauth2Auth: root.lookupType('lq.ReqOauth2Auth'),
     ReqOauth2Login: root.lookupType('lq.ReqOauth2Login'),
     ReqBuyFromZHP: root.lookupType('lq.ReqBuyFromZHP'),
     ReqCommon: root.lookupType('lq.ReqCommon'),
+    ResAccountInfo: root.lookupType('lq.ResAccountInfo'),
     ResOauth2Auth: root.lookupType('lq.ResOauth2Auth'),
     ResOauth2Login: root.lookupType('lq.ResLogin'),
     ResCommon: root.lookupType('lq.ResCommon'),
@@ -385,6 +387,11 @@ async function run() {
       throw new Error('oauth2Login failed: account not found.');
     }
     const loginGold = Number(loginResponse.account.gold ?? 0);
+    const accountId = Number(loginResponse.account_id ?? loginResponse.account?.account_id ?? 0);
+    if (!Number.isInteger(accountId) || accountId <= 0) {
+      throw new Error('oauth2Login failed: account_id not found.');
+    }
+    console.log('oauth2Login.account_id:', accountId);
     console.log('oauth2Login.account.gold:', loginGold);
 
     const payWrapper = await channel.sendRequest(
@@ -414,6 +421,18 @@ async function run() {
         console.log('gainReviveCoin: skipped', JSON.stringify(gainReviveCoinResponse));
       }
 
+      const accountInfoWrapper = await channel.sendRequest(
+        '.lq.Lobby.fetchAccountInfo',
+        encode(proto.ReqAccountInfo, { account_id: accountId })
+      );
+      const accountInfoResponse = decode(proto.ResAccountInfo, accountInfoWrapper.data);
+      const accountInfoErrorCode = Number(accountInfoResponse?.error?.code ?? 0);
+      if (accountInfoErrorCode !== 0) {
+        throw new Error(`fetchAccountInfo failed: ${JSON.stringify(accountInfoResponse)}`);
+      }
+      const latestGold = Number(accountInfoResponse?.account?.gold ?? 0);
+      console.log('fetchAccountInfo.account.gold:', latestGold);
+
       const shopInfoWrapper = await channel.sendRequest(
         '.lq.Lobby.fetchShopInfo',
         encode(proto.ReqCommon, {})
@@ -426,7 +445,7 @@ async function run() {
       console.log('fetchShopInfo.shop_info.zhp.goods:', JSON.stringify(zhpGoods));
 
       const greenGoodsIds = zhpGoods.slice(0, 4).map(Number).filter(id => Number.isInteger(id) && id > 0);
-      const maxTotalBuyable = Math.floor(loginGold / GREEN_GIFT_PRICE_GOLD);
+      const maxTotalBuyable = Math.floor(latestGold / GREEN_GIFT_PRICE_GOLD);
       let remainingPurchaseCount = Math.min(
         maxTotalBuyable,
         greenGoodsIds.length * GREEN_GIFT_MAX_COUNT_PER_GOODS
@@ -461,7 +480,7 @@ async function run() {
 
       console.log('buyFromZHP.purchasePlan:', JSON.stringify(purchasePlan));
       console.log('buyFromZHP.spentGold:', spentGold);
-      console.log('buyFromZHP.remainingGoldEstimate:', Math.max(0, loginGold - spentGold));
+      console.log('buyFromZHP.remainingGoldEstimate:', Math.max(0, latestGold - spentGold));
     }
   } finally {
     await channel.close();
