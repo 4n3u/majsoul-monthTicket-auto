@@ -8,10 +8,13 @@ const DEFAULT_BASE = 'https://game.mahjongsoul.com/';
 
 
 // If true, attempt to claim the daily revive coin once and buy as many green gifts as possible with available coin.
+// Use this only for Master rank or above accounts.
 const BUY_GREEN_GIFT = false;
 
 const GREEN_GIFT_PRICE_GOLD = 15000;
 const GREEN_GIFT_MAX_COUNT_PER_GOODS = 4;
+const REVIVE_COIN_GOLD_BONUS = 18000;
+const BUY_FROM_ZHP_LIMIT_REACHED_CODE = 2402;
 
 function normalizeBase(raw) {
   const value = (raw || '').trim();
@@ -311,6 +314,27 @@ function decode(type, buffer) {
   return type.decode(buffer);
 }
 
+async function oauth2Login(channel, proto, accessToken, versionToForce) {
+  const oauth2LoginWrapper = await channel.sendRequest(
+    '.lq.Lobby.oauth2Login',
+    encode(proto.ReqOauth2Login, {
+      type: 7,
+      access_token: accessToken,
+      reconnect: false,
+      device: { is_browser: true },
+      random_key: randomUUID(),
+      client_version_string: `web-${versionToForce}`,
+      gen_access_token: false,
+      currency_platforms: [2]
+    })
+  );
+  const loginResponse = decode(proto.ResOauth2Login, oauth2LoginWrapper.data);
+  if (!loginResponse.account) {
+    throw new Error('oauth2Login failed: account not found.');
+  }
+  return loginResponse;
+}
+
 async function run() {
   const uid = process.env.UID;
   const token = process.env.TOKEN;
@@ -369,23 +393,7 @@ async function run() {
       throw new Error(`oauth2Auth failed: ${JSON.stringify(authResponse)}`);
     }
 
-    const oauth2LoginWrapper = await channel.sendRequest(
-      '.lq.Lobby.oauth2Login',
-      encode(proto.ReqOauth2Login, {
-        type: 7,
-        access_token: authResponse.access_token,
-        reconnect: false,
-        device: { is_browser: true },
-        random_key: randomUUID(),
-        client_version_string: `web-${versionToForce}`,
-        gen_access_token: false,
-        currency_platforms: [2]
-      })
-    );
-    const loginResponse = decode(proto.ResOauth2Login, oauth2LoginWrapper.data);
-    if (!loginResponse.account) {
-      throw new Error('oauth2Login failed: account not found.');
-    }
+    const loginResponse = await oauth2Login(channel, proto, authResponse.access_token, versionToForce);
     const loginGold = Number(loginResponse.account.gold ?? 0);
     console.log('oauth2Login.account.gold:', loginGold);
 
@@ -415,7 +423,8 @@ async function run() {
       } else {
         console.log('gainReviveCoin: skipped', JSON.stringify(gainReviveCoinResponse));
       }
-      const latestGold = loginGold;
+      const latestGold = loginGold + (gainReviveCoinErrorCode === 0 ? REVIVE_COIN_GOLD_BONUS : 0);
+      console.log('estimatedGoldForPurchase:', latestGold);
 
       const shopInfoWrapper = await channel.sendRequest(
         '.lq.Lobby.fetchShopInfo',
@@ -453,6 +462,13 @@ async function run() {
         );
         const buyResponse = decode(proto.ResCommon, buyWrapper.data);
         const errorCode = Number(buyResponse?.error?.code ?? 0);
+        if (errorCode === BUY_FROM_ZHP_LIMIT_REACHED_CODE) {
+          console.log(
+            `buyFromZHP: skip all purchases for this run (goods_id=${goodsId}, count=${count}, purchase limit reached):`,
+            JSON.stringify(buyResponse)
+          );
+          break;
+        }
         if (errorCode !== 0) {
           throw new Error(`buyFromZHP failed for goods_id=${goodsId} count=${count}: ${JSON.stringify(buyResponse)}`);
         }
