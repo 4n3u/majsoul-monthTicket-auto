@@ -1,3 +1,5 @@
+require('dotenv').config();
+
 const { randomUUID } = require('node:crypto');
 const protobuf = require('protobufjs/light');
 const WebSocket = require('ws');
@@ -97,20 +99,18 @@ function loadProtoTypes(liqiJson) {
 
 
 
-  return {
-    Wrapper: root.lookupType('Wrapper'),
-    ReqHeatBeat: root.lookupType('lq.ReqHeatBeat'),
-    ReqAccountInfo: root.lookupType('lq.ReqAccountInfo'),
-    ReqOauth2Auth: root.lookupType('lq.ReqOauth2Auth'),
-    ReqOauth2Login: root.lookupType('lq.ReqOauth2Login'),
-    ReqBuyFromZHP: root.lookupType('lq.ReqBuyFromZHP'),
-    ReqCommon: root.lookupType('lq.ReqCommon'),
-    ResAccountInfo: root.lookupType('lq.ResAccountInfo'),
-    ResOauth2Auth: root.lookupType('lq.ResOauth2Auth'),
-    ResOauth2Login: root.lookupType('lq.ResLogin'),
-    ResCommon: root.lookupType('lq.ResCommon'),
-    ResShopInfo: root.lookupType('lq.ResShopInfo'),
-    ResPayMonthTicket: root.lookupType('lq.ResPayMonthTicket'),
+    return {
+      Wrapper: root.lookupType('Wrapper'),
+      ReqHeatBeat: root.lookupType('lq.ReqHeatBeat'),
+      ReqOauth2Auth: root.lookupType('lq.ReqOauth2Auth'),
+      ReqOauth2Login: root.lookupType('lq.ReqOauth2Login'),
+      ReqBuyFromZHP: root.lookupType('lq.ReqBuyFromZHP'),
+      ReqCommon: root.lookupType('lq.ReqCommon'),
+      ResOauth2Auth: root.lookupType('lq.ResOauth2Auth'),
+      ResOauth2Login: root.lookupType('lq.ResLogin'),
+      ResCommon: root.lookupType('lq.ResCommon'),
+      ResShopInfo: root.lookupType('lq.ResShopInfo'),
+      ResPayMonthTicket: root.lookupType('lq.ResPayMonthTicket'),
     ResFetchMonthTicketInfo: root.lookupType('lq.ResMonthTicketInfo')
   };
 }
@@ -387,11 +387,6 @@ async function run() {
       throw new Error('oauth2Login failed: account not found.');
     }
     const loginGold = Number(loginResponse.account.gold ?? 0);
-    const accountId = Number(loginResponse.account_id ?? loginResponse.account?.account_id ?? 0);
-    if (!Number.isInteger(accountId) || accountId <= 0) {
-      throw new Error('oauth2Login failed: account_id not found.');
-    }
-    console.log('oauth2Login.account_id:', accountId);
     console.log('oauth2Login.account.gold:', loginGold);
 
     const payWrapper = await channel.sendRequest(
@@ -420,18 +415,7 @@ async function run() {
       } else {
         console.log('gainReviveCoin: skipped', JSON.stringify(gainReviveCoinResponse));
       }
-
-      const accountInfoWrapper = await channel.sendRequest(
-        '.lq.Lobby.fetchAccountInfo',
-        encode(proto.ReqAccountInfo, { account_id: accountId })
-      );
-      const accountInfoResponse = decode(proto.ResAccountInfo, accountInfoWrapper.data);
-      const accountInfoErrorCode = Number(accountInfoResponse?.error?.code ?? 0);
-      if (accountInfoErrorCode !== 0) {
-        throw new Error(`fetchAccountInfo failed: ${JSON.stringify(accountInfoResponse)}`);
-      }
-      const latestGold = Number(accountInfoResponse?.account?.gold ?? 0);
-      console.log('fetchAccountInfo.account.gold:', latestGold);
+      const latestGold = loginGold;
 
       const shopInfoWrapper = await channel.sendRequest(
         '.lq.Lobby.fetchShopInfo',
