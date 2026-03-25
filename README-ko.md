@@ -1,4 +1,7 @@
 # majsoul-monthTicket-auto
+
+> 경고: 이 프로젝트 사용으로 인해 발생하는 불이익, 계정 제재 등 모든 결과에 대한 책임은 이용자 본인에게 있습니다.
+
 ![image](https://github.com/4n3u/majsoul-monthTicket-auto/assets/167657823/89844790-9a47-40b7-8e65-ed07430f3917)
 ![image](https://github.com/4n3u/majsoul-monthTicket-auto/assets/167657823/720689fa-7237-4d85-8979-c3e768c7f1d9)
 
