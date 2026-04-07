@@ -25,7 +25,9 @@ jobs:
       env:
         UID: ${{ secrets.UID }}
         TOKEN: ${{ secrets.TOKEN }}
-        MS_HOST: ${{ secrets.MS_HOST }}
+        EMAIL: ${{ secrets.EMAIL }}
+        PASSWORD: ${{ secrets.PASSWORD }}
+        MS_SERVER: ${{ secrets.MS_SERVER }}
 
     - name: Update Keep-Alive File
       run: |

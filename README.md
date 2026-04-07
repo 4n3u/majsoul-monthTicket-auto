@@ -5,38 +5,41 @@
 ![image](https://github.com/4n3u/majsoul-monthTicket-auto/assets/167657823/89844790-9a47-40b7-8e65-ed07430f3917)
 ![image](https://github.com/4n3u/majsoul-monthTicket-auto/assets/167657823/720689fa-7237-4d85-8979-c3e768c7f1d9)
 
-[日本語](https://github.com/4n3u/majsoul-monthTicket-auto/blob/main/README-ja.md) [한국어](https://github.com/4n3u/majsoul-monthTicket-auto/blob/main/README-ko.md) [中文](https://github.com/4n3u/majsoul-monthTicket-auto/blob/main/README-zh.md)
+[日本語](README-ja.md) [한국어](README-ko.md) [中文](README-zh.md)
 
 This project automates daily logins to Majsoul to achieve the attendance achievement (8bit Riichi BGM) and collect the daily Fortune Charm using GitHub Actions.  
-<br/>
+
 ## Prerequisites
+1. Open Majsoul in your browser.
+2. Press `F12` and switch to the `Console` tab.
+3. Run the following code:
+   ```js
+   console.log(`UID: ${GameMgr.Inst.yostar_uid}\nTOKEN: ${GameMgr.Inst.yostar_accessToken}`);
+   ```
+4. Save the printed `UID` and `TOKEN` values for JP/EN server setup.
+5. For CN, use your account email and password instead. The script calculates the required password hash internally.
 
-1. Access Majsoul through a browser.
-2. Press `F12` to open developer mode.
-3. Navigate to the `Network` tab and search for `login`.
-4. Check the payload of the xhr or fetch format login file that appears in the search results.
-5. Note down the required `token` and `uid` values.
-<br/><br/>
 ## Setup Instructions
+1. Fork this repository on GitHub.
+2. In your fork, go to `Settings > Secrets and variables > Actions`.
+3. Click `New repository secret` and add `MS_SERVER`.
+4. Set `MS_SERVER` to one of `jp`, `en`, or `cn`. If you do not set it, the default is `jp`.
+5. If you use the `jp` or `en` server, click `New repository secret` again and add `UID` and `TOKEN` with the values you saved earlier.
+6. If you use the `cn` server, click `New repository secret` again and add `EMAIL` and `PASSWORD` with your account email and plaintext password.
+7. Go to `Settings > Actions > General` and change `Workflow permissions` to `Read and write permissions`.
+8. The default run time is 6:05 AM JST every day. To change it, edit the `cron` value in `.github/workflows/main.yml`.
+9. Open the `Actions` tab and click `I understand my workflows, go ahead and enable them` to enable workflows.
+10. Select `Login to Majsoul` from the left-side `Workflows` list and click `Enable workflow`.
 
-1. Fork this project on GitHub.
-2. Navigate to `Settings > Secrets and variables > Actions` in your forked project.
-3. Click `New repository secret`.
-4. For `Name`, enter `UID`, and for `Secret`, enter the `uid` value noted earlier, then click `Add secret`.
-5. Create another Repository secret with `Name` as `TOKEN` and `Secret` as the `token` value noted earlier, then click `Add secret`.
-6. Go to `Settings > Actions > General` and set `Workflow permissions` to `Read and write permissions`.
-7. The default server location is set to the JP server. If you wish to switch to the EN server, set the repository secret `MS_HOST` (or configure the environment variable locally) to `https://mahjongsoul.game.yo-star.com/`.
-8. The default connection time is set to 6:05 AM KST daily. If you want to change this, modify the `cron` value in `.github/workflows/main.yml`.
-9. Go to the `Actions` tab at the top and click the `I understand my workflows, go ahead and enable them` button to activate the workflows.
-10. Navigate to the `Login to Majsoul` tab under `Workflows` on the left and click `Enable workflow`.
-<br/><br/>
 ## Testing Instructions
+1. Stay logged in to Majsoul in your browser.
+2. In GitHub, go to `Actions > Workflows` and click `Run workflow`.
+3. If it works correctly, your browser session may be disconnected because of a duplicate login.
 
-1. Log in to Majsoul through a browser.
-2. Click `Run workflow` under the `Actions > Workflows` tab.
-3. If it operates correctly, the browser session of Majsoul will be forcibly terminated due to double connection.
-<br/><br/>
 ## Caution
+- GitHub Actions may be delayed by up to 30 minutes depending on GitHub server load.
+- Be careful not to expose your `token` and `uid` to others.
 
-- GitHub Actions can be delayed by up to 30 minutes beyond the scheduled time due to server load on GitHub.
-- Be cautious not to disclose your `token` and `uid` to others.
+## Contact
+- [Discord](https://discord.com/users/245702966085025802)
+- [X](https://x.com/xflVsSnvB6cx8ZM)

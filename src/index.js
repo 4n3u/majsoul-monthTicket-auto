@@ -1,494 +1,583 @@
 require('dotenv').config();
 
-const { randomUUID } = require('node:crypto');
+const { createHmac, randomUUID } = require('node:crypto');
 const protobuf = require('protobufjs/light');
 const WebSocket = require('ws');
 
-const DEFAULT_BASE = 'https://game.mahjongsoul.com/';
-
-
-// If true, attempt to claim the daily revive coin once and buy as many green gifts as possible with available coin.
-// Use this only for Master rank or above accounts.
+const DEFAULT_SERVER = 'jp';
 const BUY_GREEN_GIFT = false;
-
 const GREEN_GIFT_PRICE_GOLD = 15000;
 const GREEN_GIFT_MAX_COUNT_PER_GOODS = 4;
 const REVIVE_COIN_GOLD_BONUS = 18000;
 const BUY_FROM_ZHP_LIMIT_REACHED_CODE = 2402;
+const DEFAULT_DEVICE = {
+  platform: 'pc',
+  hardware: 'pc',
+  os: 'linux',
+  os_version: 'linux',
+  is_browser: true,
+  software: 'Chrome',
+  sale_platform: 'web',
+  screen_width: 1920,
+  screen_height: 1080,
+  user_agent: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36',
+  screen_type: 2
+};
 
-function normalizeBase(raw) {
-  const value = (raw || '').trim();
-  if (!value) {
-    throw new Error('MS_HOST must not be empty');
+const SERVER_CONFIGS = {
+  jp: {
+    key: 'jp',
+    base: 'https://game.mahjongsoul.com/',
+    origin: 'https://game.mahjongsoul.com',
+    routeLang: 'jp',
+    tag: 'jp',
+    loginMode: 'oauth_code',
+    oauthType: 21,
+    currencyPlatforms: [1, 3, 5, 9, 12]
+  },
+  en: {
+    key: 'en',
+    base: 'https://mahjongsoul.game.yo-star.com/',
+    origin: 'https://mahjongsoul.game.yo-star.com',
+    routeLang: 'en',
+    tag: 'en',
+    loginMode: 'oauth_code',
+    oauthType: 22,
+    currencyPlatforms: [1, 4, 5, 9, 12]
+  },
+  cn: {
+    key: 'cn',
+    base: 'https://game.maj-soul.com/1/',
+    origin: 'https://game.maj-soul.com',
+    routeLang: 'chst',
+    tag: 'cn',
+    loginMode: 'account_password',
+    loginType: 0,
+    currencyPlatforms: [1, 2, 5, 6, 8, 10, 11]
   }
-  if (!/^https?:\/\//i.test(value)) {
-    throw new Error('MS_HOST must start with http:// or https://');
+};
+
+const PROTO_TYPES = {
+  Wrapper: 'Wrapper',
+  ReqRequestConnection: 'lq.ReqRequestConnection',
+  ReqHeartbeat: 'lq.ReqHeartbeat',
+  ReqHeatBeat: 'lq.ReqHeatBeat',
+  ReqLogin: 'lq.ReqLogin',
+  ReqOauth2Auth: 'lq.ReqOauth2Auth',
+  ReqOauth2Check: 'lq.ReqOauth2Check',
+  ReqOauth2Login: 'lq.ReqOauth2Login',
+  ReqBuyFromZHP: 'lq.ReqBuyFromZHP',
+  ReqCommon: 'lq.ReqCommon',
+  ResRequestConnection: 'lq.ResRequestConnection',
+  ResHeartbeat: 'lq.ResHeartbeat',
+  ResOauth2Auth: 'lq.ResOauth2Auth',
+  ResOauth2Check: 'lq.ResOauth2Check',
+  ResOauth2Login: 'lq.ResLogin',
+  ResCommon: 'lq.ResCommon',
+  ResShopInfo: 'lq.ResShopInfo',
+  ResPayMonthTicket: 'lq.ResPayMonthTicket',
+  ResFetchMonthTicketInfo: 'lq.ResMonthTicketInfo'
+};
+
+const fail = message => {
+  throw new Error(message);
+};
+
+const must = (value, message) => value || fail(message);
+const normalizeBase = raw => {
+  const base = must((raw || '').trim(), 'Server base URL must not be empty');
+  if (!/^https?:\/\//i.test(base)) {
+    fail('Server base URL must start with http:// or https://');
   }
-  return value.replace(/\/+$/, '');
-}
-
-function buildUrl(base, relative) {
-  return `${base}/${relative.replace(/^\/+/, '')}`;
-}
-
-function buildRandv() {
+  return base.replace(/\/+$/, '');
+};
+const buildUrl = (base, path) => `${base}/${path.replace(/^\/+/, '')}`;
+const normalizeServerKey = raw => (raw || '').trim().toLowerCase();
+const buildRandv = () => {
   const now = Date.now();
   return String(now + Math.floor(Math.random() * now));
+};
+
+const hashCnPassword = password =>
+  createHmac('sha256', 'lailai').update(password).digest('hex');
+
+function getServerConfig(serverKey) {
+  const key = normalizeServerKey(serverKey || DEFAULT_SERVER);
+  const server = SERVER_CONFIGS[key];
+  if (!server) {
+    fail(`Unsupported MS_SERVER "${serverKey}". Use one of: ${Object.keys(SERVER_CONFIGS).join(', ')}`);
+  }
+
+  let base = normalizeBase(server.base);
+  if (server.key === 'cn' && new URL(base).pathname === '/') {
+    base = `${base}/1`;
+  }
+  return {
+    ...server,
+    base
+  };
 }
 
-async function fetchJson(url, options) {
-  const response = await fetch(url, options);
+async function requestJson(url, { body, headers, ...options } = {}) {
+  const init = { ...options, headers };
+  if (body !== undefined) {
+    init.body = typeof body === 'string' ? body : JSON.stringify(body);
+    if (typeof body !== 'string') {
+      init.headers = {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+        ...headers
+      };
+    }
+  }
+
+  const response = await fetch(url, init);
   if (!response.ok) {
-    throw new Error(`Request failed ${response.status} ${response.statusText} for ${url}`);
+    fail(`Request failed ${response.status} ${response.statusText} for ${url}`);
   }
   return response.json();
 }
 
-async function fetchText(url, options) {
-  const response = await fetch(url, options);
-  if (!response.ok) {
-    throw new Error(`Request failed ${response.status} ${response.statusText} for ${url}`);
-  }
-  return response.text();
-}
-
-async function fetchVersion(base) {
-  const url = new URL(buildUrl(base, 'version.json'));
-  url.searchParams.set('randv', buildRandv());
-  const payload = await fetchJson(url);
-  if (!payload?.version) {
-    throw new Error(`Unexpected version payload: ${JSON.stringify(payload)}`);
-  }
-  return payload;
-}
-
-function extractCodeDirectory(code) {
-  if (typeof code !== 'string' || !code.includes('/')) {
-    return code || '';
-  }
-  const [first] = code.split('/');
-  return first || code;
-}
-
-async function fetchConfig(base, codeDir) {
-  if (!codeDir) {
-    throw new Error('Missing code directory for config fetch');
-  }
-  const url = buildUrl(base, `${codeDir}/config.json`);
-  const text = await fetchText(url);
-  return JSON.parse(text);
-}
-
-async function fetchResVersion(base, version) {
-  if (!version) {
-    throw new Error('Missing version string for resversion fetch');
-  }
-  const url = buildUrl(base, `resversion${version}.json`);
-  return fetchJson(url);
-}
-
-async function fetchLiqi(base, prefix) {
-  if (!prefix) {
-    throw new Error('Missing liqi prefix from manifest');
-  }
-  const cleaned = prefix.replace(/^\/+/, '');
-  const url = buildUrl(base, `${cleaned}/res/proto/liqi.json`);
-  const text = await fetchText(url);
-  return JSON.parse(text);
-}
-
 function loadProtoTypes(liqiJson) {
   const root = protobuf.Root.fromJSON(liqiJson);
-
-
-
-    return {
-      Wrapper: root.lookupType('Wrapper'),
-      ReqHeatBeat: root.lookupType('lq.ReqHeatBeat'),
-      ReqOauth2Auth: root.lookupType('lq.ReqOauth2Auth'),
-      ReqOauth2Login: root.lookupType('lq.ReqOauth2Login'),
-      ReqBuyFromZHP: root.lookupType('lq.ReqBuyFromZHP'),
-      ReqCommon: root.lookupType('lq.ReqCommon'),
-      ResOauth2Auth: root.lookupType('lq.ResOauth2Auth'),
-      ResOauth2Login: root.lookupType('lq.ResLogin'),
-      ResCommon: root.lookupType('lq.ResCommon'),
-      ResShopInfo: root.lookupType('lq.ResShopInfo'),
-      ResPayMonthTicket: root.lookupType('lq.ResPayMonthTicket'),
-    ResFetchMonthTicketInfo: root.lookupType('lq.ResMonthTicketInfo')
-  };
-}
-
-async function fetchGatewayDomains(gatewayUrl) {
-  const normalized = gatewayUrl.replace(/\/+$/, '');
-  const url = `${normalized}/api/clientgate/routes`;
-  const routes = await fetchJson(url);
-  const servers = routes?.data?.routes?.map(route => route.domain).filter(Boolean) ?? [];
-  if (!servers.length) {
-    throw new Error('No available gateway servers found.');
-  }
-  return servers;
-}
-
-function pickGatewayUrl(config) {
-  const entries = Array.isArray(config?.ip) ? config.ip : [];
-  for (const entry of entries) {
-    if (Array.isArray(entry?.gateways) && entry.gateways.length > 0) {
-      return entry.gateways[0].url;
-    }
-  }
-  throw new Error('Gateway URL missing from config');
-}
-
-function getPassportUrl(config) {
-  const value = Array.isArray(config?.yo_service_url) ? config.yo_service_url[0] : null;
-  if (!value) {
-    throw new Error('Passport service URL missing from config');
-  }
-  return value.replace(/\/+$/, '');
-}
-
-async function passportLogin(passportUrl, uid, token) {
-  const url = `${passportUrl}/user/login`;
-  const payload = {
-    uid,
-    token,
-    deviceId: `web|${uid}`
-  };
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json'
-    },
-    body: JSON.stringify(payload)
-  });
-  if (!response.ok) {
-    throw new Error(`Passport login failed ${response.status} ${response.statusText}`);
-  }
-  const body = await response.json();
-  if (!body?.accessToken) {
-    throw new Error(`Passport response missing accessToken: ${JSON.stringify(body)}`);
-  }
-  return body.accessToken;
-}
-
-class MSRPCChannel {
-  constructor(endpoint, origin, Wrapper) {
-    this.endpoint = endpoint;
-    this.origin = origin;
-    this.Wrapper = Wrapper;
-    this.requestId = 1;
-    this.pending = new Map();
-  }
-
-  async connect() {
-    this.ws = new WebSocket(this.endpoint, {
-      origin: this.origin,
-      perMessageDeflate: false
-    });
-
-    await new Promise((resolve, reject) => {
-      const cleanup = () => {
-        this.ws.removeListener('open', onOpen);
-        this.ws.removeListener('error', onError);
-      };
-
-      const onOpen = () => {
-        cleanup();
-        resolve();
-      };
-
-      const onError = err => {
-        cleanup();
-        reject(err);
-      };
-
-      this.ws.once('open', onOpen);
-      this.ws.once('error', onError);
-    });
-
-    this.ws.on('message', data => this.handleMessage(data));
-    this.ws.on('error', err => {
-      for (const pending of this.pending.values()) {
-        pending.reject(err);
-      }
-      this.pending.clear();
-    });
-    this.ws.on('close', () => {
-      const error = new Error('WebSocket connection closed.');
-      for (const pending of this.pending.values()) {
-        pending.reject(error);
-      }
-      this.pending.clear();
-    });
-  }
-
-  async close() {
-    if (!this.ws || this.ws.readyState === WebSocket.CLOSED) {
-      return;
-    }
-    await new Promise(resolve => {
-      this.ws.once('close', resolve);
-      this.ws.close();
-    });
-  }
-
-  handleMessage(data) {
-    const buffer = Buffer.isBuffer(data) ? data : Buffer.from(data);
-    const typeByte = buffer[0];
-
-    if (typeByte !== 3) {
-      return;
-    }
-
-    const requestId = buffer.readUInt16LE(1);
-    const wrapperData = buffer.subarray(3);
-
-    const pending = this.pending.get(requestId);
-    if (!pending) {
-      return;
-    }
-    this.pending.delete(requestId);
-
-    try {
-      const message = this.Wrapper.decode(wrapperData);
-      pending.resolve(message);
-    } catch (err) {
-      pending.reject(err);
-    }
-  }
-
-  sendRequest(name, payload) {
-    const requestId = this.requestId;
-    this.requestId = (this.requestId + 1) % 60007 || 1;
-
-    const wrapper = this.Wrapper.create({
-      name,
-      data: payload
-    });
-    const wrapperBytes = this.Wrapper.encode(wrapper).finish();
-
-    const header = Buffer.alloc(3);
-    header.writeUInt8(0x02, 0);
-    header.writeUInt16LE(requestId, 1);
-
-    const packet = Buffer.concat([header, Buffer.from(wrapperBytes)]);
-
-    return new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        this.pending.delete(requestId);
-        reject(new Error(`RPC request timeout for ${name}`));
-      }, 15000);
-
-      this.pending.set(requestId, {
-        resolve: value => {
-          clearTimeout(timeout);
-          resolve(value);
-        },
-        reject: err => {
-          clearTimeout(timeout);
-          reject(err);
-        }
-      });
-
-      this.ws.send(packet, err => {
-        if (err) {
-          clearTimeout(timeout);
-          this.pending.delete(requestId);
-          reject(err);
-        }
-      });
-    });
-  }
+  return Object.fromEntries(
+    Object.entries(PROTO_TYPES).map(([key, typeName]) => [key, root.lookupType(typeName)])
+  );
 }
 
 function encode(type, payload) {
-  const err = type.verify(payload);
-  if (err) {
-    throw new Error(err);
+  const error = type.verify(payload);
+  if (error) {
+    fail(error);
   }
   return type.encode(payload).finish();
 }
 
-function decode(type, buffer) {
-  return type.decode(buffer);
+function buildRoutesUrl(gatewayUrl, version, lang) {
+  const url = new URL(`${gatewayUrl.replace(/\/+$/, '')}/api/clientgate/routes`);
+  url.searchParams.set('platform', 'Web');
+  url.searchParams.set('version', version);
+  if (lang) {
+    url.searchParams.set('lang', lang);
+  }
+  url.searchParams.set('randv', buildRandv());
+  return url;
 }
 
-async function oauth2Login(channel, proto, accessToken, versionToForce) {
-  const oauth2LoginWrapper = await channel.sendRequest(
+function shuffle(items) {
+  const values = [...items];
+  for (let i = values.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [values[i], values[j]] = [values[j], values[i]];
+  }
+  return values;
+}
+
+async function loadServerContext(server) {
+  const { base, routeLang } = server;
+  const versionUrl = new URL(buildUrl(base, 'version.json'));
+  versionUrl.searchParams.set('randv', buildRandv());
+
+  const versionInfo = await requestJson(versionUrl);
+  must(versionInfo?.version, `Unexpected version payload: ${JSON.stringify(versionInfo)}`);
+
+  const version = versionInfo.version;
+  const versionToForce = version.replace('.w', '');
+  const codeDir = must(String(versionInfo.code || '').split('/')[0], 'Missing code directory for config fetch');
+
+  console.log(`version.json -> version=${version} force_version=${versionInfo.force_version} code=${versionInfo.code}`);
+
+  const [config, resManifest] = await Promise.all([
+    requestJson(buildUrl(base, `${codeDir}/config.json`)),
+    requestJson(buildUrl(base, `resversion${version}.json`))
+  ]);
+
+  const liqiPrefix = must(resManifest?.res?.['res/proto/liqi.json']?.prefix, 'liqi prefix missing from resversion manifest');
+  console.log(`liqi prefix: ${liqiPrefix}`);
+
+  const gatewayUrl = must(
+    config?.ip?.find(entry => Array.isArray(entry?.gateways) && entry.gateways.length)?.gateways?.[0]?.url,
+    'Gateway URL missing from config'
+  ).replace(/\/+$/, '');
+
+  const [routes, liqiJson] = await Promise.all([
+    requestJson(buildRoutesUrl(gatewayUrl, version, routeLang)),
+    requestJson(buildUrl(base, `${liqiPrefix.replace(/^\/+/, '')}/res/proto/liqi.json`))
+  ]);
+
+  const routeList = routes?.data?.routes?.filter(route => route?.id && route?.domain) ?? [];
+  if (!routeList.length) {
+    fail('No available gateway servers found.');
+  }
+
+  const routesToTry = shuffle(routeList).map(route => ({
+    id: route.id,
+    endpoint: `wss://${route.domain}/gateway`
+  }));
+  console.log(`available gateway routes: ${routesToTry.map(route => route.id).join(', ')}`);
+
+  return {
+    server,
+    base,
+    routes: routesToTry,
+    version,
+    versionToForce,
+    proto: loadProtoTypes(liqiJson)
+  };
+}
+
+async function openChannel(endpoint, origin, Wrapper) {
+  const ws = new WebSocket(endpoint, { origin, perMessageDeflate: false });
+  const pending = new Map();
+  let nextRequestId = 1;
+
+  const settlePending = error => {
+    for (const request of pending.values()) {
+      clearTimeout(request.timeout);
+      request.reject(error);
+    }
+    pending.clear();
+  };
+
+  await new Promise((resolve, reject) => {
+    const cleanup = () => {
+      ws.removeListener('open', onOpen);
+      ws.removeListener('error', onError);
+    };
+    const onOpen = () => {
+      cleanup();
+      resolve();
+    };
+    const onError = error => {
+      cleanup();
+      reject(error);
+    };
+
+    ws.once('open', onOpen);
+    ws.once('error', onError);
+  });
+
+  ws.on('message', data => {
+    const buffer = Buffer.isBuffer(data) ? data : Buffer.from(data);
+    if (buffer[0] !== 3) {
+      return;
+    }
+
+    const requestId = buffer.readUInt16LE(1);
+    const request = pending.get(requestId);
+    if (!request) {
+      return;
+    }
+
+    pending.delete(requestId);
+    clearTimeout(request.timeout);
+
+    try {
+      request.resolve(Wrapper.decode(buffer.subarray(3)));
+    } catch (error) {
+      request.reject(error);
+    }
+  });
+
+  ws.on('error', settlePending);
+  ws.on('close', () => settlePending(new Error('WebSocket connection closed.')));
+
+  return {
+    send(name, payload) {
+      const requestId = nextRequestId;
+      nextRequestId = (nextRequestId + 1) % 60007 || 1;
+
+      const header = Buffer.alloc(3);
+      header.writeUInt8(0x02, 0);
+      header.writeUInt16LE(requestId, 1);
+
+      const wrapper = Wrapper.encode(Wrapper.create({ name, data: payload })).finish();
+      const packet = Buffer.concat([header, Buffer.from(wrapper)]);
+
+      return new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          pending.delete(requestId);
+          reject(new Error(`RPC request timeout for ${name}`));
+        }, 15000);
+
+        pending.set(requestId, {
+          timeout,
+          resolve,
+          reject
+        });
+
+        ws.send(packet, error => {
+          if (!error) {
+            return;
+          }
+          clearTimeout(timeout);
+          pending.delete(requestId);
+          reject(error);
+        });
+      });
+    },
+    async close() {
+      if (ws.readyState === WebSocket.CLOSED) {
+        return;
+      }
+      await new Promise(resolve => {
+        ws.once('close', resolve);
+        ws.close();
+      });
+    }
+  };
+}
+
+async function createSessionForRoute(context, route, credentials) {
+  const { server, proto, version, versionToForce } = context;
+  const { uid, token, email, password } = credentials;
+  console.log(`trying gateway route ${route.id}: ${route.endpoint}`);
+  const channel = await openChannel(route.endpoint, server.origin, proto.Wrapper);
+  const call = async (name, requestType, payload, responseType) => {
+    const wrapper = await channel.send(name, encode(requestType, payload));
+    return responseType ? responseType.decode(wrapper.data) : wrapper;
+  };
+  const common = (name, responseType) => call(name, proto.ReqCommon, {}, responseType);
+
+  await call(
+    '.lq.Route.requestConnection',
+    proto.ReqRequestConnection,
+    {
+      type: 1,
+      route_id: route.id,
+      timestamp: Date.now()
+    },
+    proto.ResRequestConnection
+  );
+  await call(
+    '.lq.Route.heartbeat',
+    proto.ReqHeartbeat,
+    {
+      delay: 0,
+      no_operation_counter: 0,
+      platform: 11,
+      network_quality: 0
+    },
+    proto.ResHeartbeat
+  );
+
+  if (server.loginMode === 'account_password') {
+    const loginResponse = await call(
+      '.lq.Lobby.login',
+      proto.ReqLogin,
+      {
+        account: email,
+        password: hashCnPassword(password),
+        reconnect: false,
+        device: DEFAULT_DEVICE,
+        random_key: randomUUID(),
+        client_version: { resource: version },
+        gen_access_token: true,
+        currency_platforms: server.currencyPlatforms,
+        type: server.loginType,
+        client_version_string: `web-${versionToForce}`,
+        tag: server.tag
+      },
+      proto.ResOauth2Login
+    );
+    if (!loginResponse.account) {
+      fail('login failed: account not found.');
+    }
+
+    return {
+      proto,
+      common,
+      call,
+      close: () => channel.close(),
+      loginGold: Number(loginResponse.account.gold ?? 0)
+    };
+  }
+
+  let accessToken = token;
+  if (server.loginMode === 'oauth_code') {
+    const authResponse = await call(
+      '.lq.Lobby.oauth2Auth',
+      proto.ReqOauth2Auth,
+      {
+        type: server.oauthType,
+        code: token,
+        uid,
+        client_version_string: `web-${versionToForce}`
+      },
+      proto.ResOauth2Auth
+    );
+    accessToken = must(authResponse?.access_token, `oauth2Auth failed: ${JSON.stringify(authResponse)}`);
+  }
+
+  const checkResponse = await call(
+    '.lq.Lobby.oauth2Check',
+    proto.ReqOauth2Check,
+    {
+      type: server.oauthType,
+      access_token: accessToken
+    },
+    proto.ResOauth2Check
+  );
+  if (!checkResponse?.has_account) {
+    fail(`oauth2Check failed: ${JSON.stringify(checkResponse)}`);
+  }
+
+  const loginResponse = await call(
     '.lq.Lobby.oauth2Login',
-    encode(proto.ReqOauth2Login, {
-      type: 7,
+    proto.ReqOauth2Login,
+    {
+      type: server.oauthType,
       access_token: accessToken,
       reconnect: false,
-      device: { is_browser: true },
+      device: DEFAULT_DEVICE,
       random_key: randomUUID(),
+      client_version: { resource: version },
       client_version_string: `web-${versionToForce}`,
-      gen_access_token: false,
-      currency_platforms: [2]
-    })
+      currency_platforms: server.currencyPlatforms,
+      tag: server.tag
+    },
+    proto.ResOauth2Login
   );
-  const loginResponse = decode(proto.ResOauth2Login, oauth2LoginWrapper.data);
   if (!loginResponse.account) {
-    throw new Error('oauth2Login failed: account not found.');
+    fail('oauth2Login failed: account not found.');
   }
-  return loginResponse;
+
+  return {
+    proto,
+    common,
+    call,
+    close: () => channel.close(),
+    loginGold: Number(loginResponse.account.gold ?? 0)
+  };
+}
+
+async function createSession(context, credentials) {
+  const errors = [];
+
+  for (const route of context.routes) {
+    try {
+      return await createSessionForRoute(context, route, credentials);
+    } catch (error) {
+      errors.push({ route: route.id, message: error?.message || String(error) });
+      console.warn(`gateway route ${route.id} failed: ${error?.message || error}`);
+    }
+  }
+
+  fail(`All gateway routes failed: ${JSON.stringify(errors)}`);
+}
+
+async function runActions(session) {
+  const { proto, common, call, loginGold } = session;
+  console.log('oauth2Login.account.gold:', loginGold);
+
+  const payResponse = await common('.lq.Lobby.payMonthTicket', proto.ResPayMonthTicket);
+  console.log('payMonthTicket:', JSON.stringify(payResponse));
+
+  const infoResponse = await common('.lq.Lobby.fetchMonthTicketInfo', proto.ResFetchMonthTicketInfo);
+  console.log('fetchMonthTicketInfo:', JSON.stringify(infoResponse));
+
+  if (!BUY_GREEN_GIFT) {
+    return;
+  }
+
+  const gainReviveCoinResponse = await common('.lq.Lobby.gainReviveCoin', proto.ResCommon);
+  const gainReviveCoinErrorCode = Number(gainReviveCoinResponse?.error?.code ?? 0);
+  if (gainReviveCoinErrorCode === 0) {
+    console.log('gainReviveCoin: success');
+  } else {
+    console.log('gainReviveCoin: skipped', JSON.stringify(gainReviveCoinResponse));
+  }
+
+  const latestGold = loginGold + (gainReviveCoinErrorCode === 0 ? REVIVE_COIN_GOLD_BONUS : 0);
+  console.log('estimatedGoldForPurchase:', latestGold);
+
+  const shopInfoResponse = await common('.lq.Lobby.fetchShopInfo', proto.ResShopInfo);
+  const zhpGoods = shopInfoResponse.shop_info?.zhp?.goods;
+  if (!zhpGoods) {
+    fail('fetchShopInfo failed: shop_info.zhp not found.');
+  }
+  console.log('fetchShopInfo.shop_info.zhp.goods:', JSON.stringify(zhpGoods));
+
+  const greenGoodsIds = zhpGoods.slice(0, 4).map(Number).filter(id => Number.isInteger(id) && id > 0);
+  const maxTotalBuyable = Math.floor(latestGold / GREEN_GIFT_PRICE_GOLD);
+  let remainingPurchaseCount = Math.min(maxTotalBuyable, greenGoodsIds.length * GREEN_GIFT_MAX_COUNT_PER_GOODS);
+  let spentGold = 0;
+  const purchasePlan = [];
+
+  for (const goodsId of greenGoodsIds) {
+    if (remainingPurchaseCount <= 0) {
+      break;
+    }
+
+    const count = Math.min(GREEN_GIFT_MAX_COUNT_PER_GOODS, remainingPurchaseCount);
+    const buyResponse = await call(
+      '.lq.Lobby.buyFromZHP',
+      proto.ReqBuyFromZHP,
+      { goods_id: goodsId, count },
+      proto.ResCommon
+    );
+    const errorCode = Number(buyResponse?.error?.code ?? 0);
+
+    if (errorCode === BUY_FROM_ZHP_LIMIT_REACHED_CODE) {
+      console.log(
+        `buyFromZHP: skip all purchases for this run (goods_id=${goodsId}, count=${count}, purchase limit reached):`,
+        JSON.stringify(buyResponse)
+      );
+      break;
+    }
+    if (errorCode !== 0) {
+      fail(`buyFromZHP failed for goods_id=${goodsId} count=${count}: ${JSON.stringify(buyResponse)}`);
+    }
+
+    purchasePlan.push({ goods_id: goodsId, count });
+    remainingPurchaseCount -= count;
+    spentGold += count * GREEN_GIFT_PRICE_GOLD;
+  }
+
+  console.log('buyFromZHP.purchasePlan:', JSON.stringify(purchasePlan));
+  console.log('buyFromZHP.spentGold:', spentGold);
+  console.log('buyFromZHP.remainingGoldEstimate:', Math.max(0, latestGold - spentGold));
+}
+
+function loadRuntimeConfig() {
+  const server = getServerConfig(process.env.MS_SERVER);
+  const uid = process.env.UID;
+  const token = process.env.TOKEN;
+  const email = process.env.EMAIL;
+  const password = process.env.PASSWORD;
+
+  if (server.loginMode === 'account_password') {
+    if (!email || !password) {
+      fail('EMAIL and PASSWORD environment variables are required for CN server.');
+    }
+  } else if (!uid || !token) {
+    fail('UID and TOKEN environment variables are required for JP/EN servers.');
+  }
+
+  return {
+    uid,
+    token,
+    email,
+    password,
+    server
+  };
 }
 
 async function run() {
-  const uid = process.env.UID;
-  const token = process.env.TOKEN;
-
-  if (!uid || !token) {
-    throw new Error('UID and TOKEN environment variables are required.');
-  }
-
-  const base = normalizeBase(process.env.MS_HOST || DEFAULT_BASE);
-
-  const versionInfo = await fetchVersion(base);
-  const versionToForce = versionInfo.version.replace('.w', '');
-  console.log(`version.json -> version=${versionInfo.version} force_version=${versionInfo.force_version} code=${versionInfo.code}`);
-
-  const codeDir = extractCodeDirectory(versionInfo.code);
-  const config = await fetchConfig(base, codeDir);
-
-  const resManifest = await fetchResVersion(base, versionInfo.version);
-  const liqiPrefix = resManifest?.res?.['res/proto/liqi.json']?.prefix;
-  if (!liqiPrefix) {
-    throw new Error('liqi prefix missing from resversion manifest');
-  }
-  console.log(`liqi prefix: ${liqiPrefix}`);
-  const liqiJson = await fetchLiqi(base, liqiPrefix);
-  const proto = loadProtoTypes(liqiJson);
-
-  const gatewayUrl = pickGatewayUrl(config);
-  const servers = await fetchGatewayDomains(gatewayUrl);
-  const server = servers[Math.floor(Math.random() * servers.length)];
-  const endpoint = `wss://${server}/gateway`;
-  console.log(`selected gateway endpoint: ${endpoint}`);
-
-  const passportUrl = getPassportUrl(config);
-  const accessToken = await passportLogin(passportUrl, uid, token);
-
-  const channel = new MSRPCChannel(endpoint, base, proto.Wrapper);
-  await channel.connect();
+  const credentials = loadRuntimeConfig();
+  const { server } = credentials;
+  console.log(`selected server: ${server.key}`);
+  const context = await loadServerContext(server);
+  const session = await createSession(context, credentials);
 
   try {
-    await channel.sendRequest(
-      '.lq.Lobby.heatbeat',
-      encode(proto.ReqHeatBeat, { no_operation_counter: 1 })
-    );
-
-    const authWrapper = await channel.sendRequest(
-      '.lq.Lobby.oauth2Auth',
-      encode(proto.ReqOauth2Auth, {
-        type: 7,
-        code: accessToken,
-        uid,
-        client_version_string: `web-${versionToForce}`
-      })
-    );
-    const authResponse = decode(proto.ResOauth2Auth, authWrapper.data);
-    if (!authResponse.access_token) {
-      throw new Error(`oauth2Auth failed: ${JSON.stringify(authResponse)}`);
-    }
-
-    const loginResponse = await oauth2Login(channel, proto, authResponse.access_token, versionToForce);
-    const loginGold = Number(loginResponse.account.gold ?? 0);
-    console.log('oauth2Login.account.gold:', loginGold);
-
-    const payWrapper = await channel.sendRequest(
-      '.lq.Lobby.payMonthTicket',
-      encode(proto.ReqCommon, {})
-    );
-    const payResponse = decode(proto.ResPayMonthTicket, payWrapper.data);
-    console.log('payMonthTicket:', JSON.stringify(payResponse));
-
-    const infoWrapper = await channel.sendRequest(
-      '.lq.Lobby.fetchMonthTicketInfo',
-      encode(proto.ReqCommon, {})
-    );
-    const infoResponse = decode(proto.ResFetchMonthTicketInfo, infoWrapper.data);
-    console.log('fetchMonthTicketInfo:', JSON.stringify(infoResponse));
-
-    if (BUY_GREEN_GIFT) {
-      const gainReviveCoinWrapper = await channel.sendRequest(
-        '.lq.Lobby.gainReviveCoin',
-        encode(proto.ReqCommon, {})
-      );
-      const gainReviveCoinResponse = decode(proto.ResCommon, gainReviveCoinWrapper.data);
-      const gainReviveCoinErrorCode = Number(gainReviveCoinResponse?.error?.code ?? 0);
-      if (gainReviveCoinErrorCode === 0) {
-        console.log('gainReviveCoin: success');
-      } else {
-        console.log('gainReviveCoin: skipped', JSON.stringify(gainReviveCoinResponse));
-      }
-      const latestGold = loginGold + (gainReviveCoinErrorCode === 0 ? REVIVE_COIN_GOLD_BONUS : 0);
-      console.log('estimatedGoldForPurchase:', latestGold);
-
-      const shopInfoWrapper = await channel.sendRequest(
-        '.lq.Lobby.fetchShopInfo',
-        encode(proto.ReqCommon, {})
-      );
-      const shopInfoResponse = decode(proto.ResShopInfo, shopInfoWrapper.data);
-      if (!shopInfoResponse.shop_info?.zhp) {
-        throw new Error('fetchShopInfo failed: shop_info.zhp not found.');
-      }
-      const zhpGoods = shopInfoResponse.shop_info.zhp.goods ?? [];
-      console.log('fetchShopInfo.shop_info.zhp.goods:', JSON.stringify(zhpGoods));
-
-      const greenGoodsIds = zhpGoods.slice(0, 4).map(Number).filter(id => Number.isInteger(id) && id > 0);
-      const maxTotalBuyable = Math.floor(latestGold / GREEN_GIFT_PRICE_GOLD);
-      let remainingPurchaseCount = Math.min(
-        maxTotalBuyable,
-        greenGoodsIds.length * GREEN_GIFT_MAX_COUNT_PER_GOODS
-      );
-      let spentGold = 0;
-      const purchasePlan = [];
-
-      for (const goodsId of greenGoodsIds) {
-        if (remainingPurchaseCount <= 0) {
-          break;
-        }
-
-        const count = Math.min(GREEN_GIFT_MAX_COUNT_PER_GOODS, remainingPurchaseCount);
-        if (count <= 0) {
-          continue;
-        }
-
-        const buyWrapper = await channel.sendRequest(
-          '.lq.Lobby.buyFromZHP',
-          encode(proto.ReqBuyFromZHP, { goods_id: goodsId, count })
-        );
-        const buyResponse = decode(proto.ResCommon, buyWrapper.data);
-        const errorCode = Number(buyResponse?.error?.code ?? 0);
-        if (errorCode === BUY_FROM_ZHP_LIMIT_REACHED_CODE) {
-          console.log(
-            `buyFromZHP: skip all purchases for this run (goods_id=${goodsId}, count=${count}, purchase limit reached):`,
-            JSON.stringify(buyResponse)
-          );
-          break;
-        }
-        if (errorCode !== 0) {
-          throw new Error(`buyFromZHP failed for goods_id=${goodsId} count=${count}: ${JSON.stringify(buyResponse)}`);
-        }
-
-        purchasePlan.push({ goods_id: goodsId, count });
-        remainingPurchaseCount -= count;
-        spentGold += count * GREEN_GIFT_PRICE_GOLD;
-      }
-
-      console.log('buyFromZHP.purchasePlan:', JSON.stringify(purchasePlan));
-      console.log('buyFromZHP.spentGold:', spentGold);
-      console.log('buyFromZHP.remainingGoldEstimate:', Math.max(0, latestGold - spentGold));
-    }
+    await runActions(session);
   } finally {
-    await channel.close();
+    await session.close();
   }
 }
 
-run().catch(err => {
-  console.error(err?.stack || err.message);
+run().catch(error => {
+  console.error(error?.stack || error.message);
   process.exitCode = 1;
 });
-
