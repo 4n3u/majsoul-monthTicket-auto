@@ -14,15 +14,15 @@
    ```js
    console.log(`UID: ${GameMgr.Inst.yostar_uid}\nTOKEN: ${GameMgr.Inst.yostar_accessToken}`);
    ```
-4. 记录输出的 `UID` 和 `TOKEN`，用于 JP/EN 服务器配置。
+4. 记录输出的 `UID` 和 `TOKEN`，用于 JP/EN/KR 服务器配置。
 5. 如果使用 CN 服务器，则准备好账号邮箱和密码。所需的密码哈希会由脚本内部自动计算。
 
 ## 配置步骤
 1. 在 GitHub 上 Fork 本仓库。
 2. 在 Fork 后的仓库中打开 `Settings > Secrets and variables > Actions`。
 3. 点击 `New repository secret`，添加 `MS_SERVER`。
-4. `MS_SERVER` 的值填写 `jp`、`en`、`cn` 之一。不填写时默认使用 `jp`。
-5. 如果使用 `jp` 或 `en` 服务器，请再次点击 `New repository secret`，添加 `UID` 和 `TOKEN`。
+4. `MS_SERVER` 的值填写 `jp`、`en`、`kr`、`cn` 之一。不填写时默认使用 `jp`。
+5. 如果使用 `jp`、`en` 或 `kr` 服务器，请再次点击 `New repository secret`，添加 `UID` 和 `TOKEN`。
 6. 如果使用 `cn` 服务器，请再次点击 `New repository secret`，添加 `EMAIL` 和 `PASSWORD`，值填写账号邮箱和明文密码。
 7. 前往 `Settings > Actions > General`，将 `Workflow permissions` 调整为 `Read and write permissions`。
 8. 默认执行时间为每天 JST 6:05。若需修改，请编辑 `.github/workflows/main.yml` 中的 `cron`。

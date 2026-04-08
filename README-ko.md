@@ -14,15 +14,15 @@
    ```js
    console.log(`UID: ${GameMgr.Inst.yostar_uid}\nTOKEN: ${GameMgr.Inst.yostar_accessToken}`);
    ```
-4. 출력된 `UID`와 `TOKEN` 값을 기록한 뒤, JP/EN 서버 설정에 사용합니다.
+4. 출력된 `UID`와 `TOKEN` 값을 기록한 뒤, JP/EN/KR 서버 설정에 사용합니다.
 5. CN 서버는 계정의 이메일과 비밀번호를 기억하시면 됩니다.
 
 ## 설정 방법
 1. 이 프로젝트를 GitHub에서 포크합니다.
 2. 포크한 저장소에서 `Settings > Secrets and variables > Actions`로 이동합니다.
 3. `New repository secret` 버튼을 눌러 `MS_SERVER` 시크릿을 추가합니다.
-4. `MS_SERVER` 값은 사용할 서버에 따라 `jp`, `en`, `cn` 중 하나를 입력합니다. 입력하지 않으면 기본값은 `jp`입니다.
-5. `jp` 또는 `en` 서버를 사용할 경우 `New repository secret` 버튼을 다시 눌러 `UID`와 `TOKEN` 시크릿을 추가합니다. 값에는 사전에 메모해둔 `UID`와 `TOKEN`을 입력합니다.
+4. `MS_SERVER` 값은 사용할 서버에 따라 `jp`, `en`, `kr`, `cn` 중 하나를 입력합니다. 입력하지 않으면 기본값은 `jp`입니다.
+5. `jp`, `en`, `kr` 서버를 사용할 경우 `New repository secret` 버튼을 다시 눌러 `UID`와 `TOKEN` 시크릿을 추가합니다. 값에는 사전에 메모해둔 `UID`와 `TOKEN`을 입력합니다.
 6. `cn` 서버를 사용할 경우 `New repository secret` 버튼을 다시 눌러 `EMAIL`과 `PASSWORD` 시크릿을 추가합니다. 값에는 계정 이메일과 비밀번호 원문을 입력합니다.
 7. `Settings > Actions > General`로 이동해 `Workflow permissions`를 `Read and write permissions`로 변경합니다.
 8. 기본 실행 시각은 매일 JST 기준 오전 6시 05분입니다. 변경하려면 `.github/workflows/main.yml`의 `cron` 값을 수정합니다.

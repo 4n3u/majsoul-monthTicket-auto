@@ -16,15 +16,15 @@ This project automates daily logins to Majsoul to achieve the attendance achieve
    ```js
    console.log(`UID: ${GameMgr.Inst.yostar_uid}\nTOKEN: ${GameMgr.Inst.yostar_accessToken}`);
    ```
-4. Save the printed `UID` and `TOKEN` values for JP/EN server setup.
+4. Save the printed `UID` and `TOKEN` values for JP/EN/KR server setup.
 5. For CN, use your account email and password instead. The script calculates the required password hash internally.
 
 ## Setup Instructions
 1. Fork this repository on GitHub.
 2. In your fork, go to `Settings > Secrets and variables > Actions`.
 3. Click `New repository secret` and add `MS_SERVER`.
-4. Set `MS_SERVER` to one of `jp`, `en`, or `cn`. If you do not set it, the default is `jp`.
-5. If you use the `jp` or `en` server, click `New repository secret` again and add `UID` and `TOKEN` with the values you saved earlier.
+4. Set `MS_SERVER` to one of `jp`, `en`, `kr`, or `cn`. If you do not set it, the default is `jp`.
+5. If you use the `jp`, `en`, or `kr` server, click `New repository secret` again and add `UID` and `TOKEN` with the values you saved earlier.
 6. If you use the `cn` server, click `New repository secret` again and add `EMAIL` and `PASSWORD` with your account email and plaintext password.
 7. Go to `Settings > Actions > General` and change `Workflow permissions` to `Read and write permissions`.
 8. The default run time is 6:05 AM JST every day. To change it, edit the `cron` value in `.github/workflows/main.yml`.

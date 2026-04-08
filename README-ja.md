@@ -14,15 +14,15 @@
    ```js
    console.log(`UID: ${GameMgr.Inst.yostar_uid}\nTOKEN: ${GameMgr.Inst.yostar_accessToken}`);
    ```
-4. 表示された `UID` と `TOKEN` を控え、JP/EN サーバーの設定に使います。
+4. 表示された `UID` と `TOKEN` を控え、JP/EN/KR サーバーの設定に使います。
 5. CN サーバーでは、アカウントのメールアドレスとパスワードを使います。必要なハッシュはスクリプト側で計算されます。
 
 ## セットアップ手順
 1. このリポジトリを GitHub でフォークします。
 2. フォーク先で `Settings > Secrets and variables > Actions` を開きます。
 3. `New repository secret` をクリックして `MS_SERVER` を追加します。
-4. `MS_SERVER` には `jp`、`en`、`cn` のいずれかを設定します。未設定の場合は `jp` が使われます。
-5. `jp` または `en` サーバーを使う場合は、`New repository secret` を再度クリックして `UID` と `TOKEN` を追加します。
+4. `MS_SERVER` には `jp`、`en`、`kr`、`cn` のいずれかを設定します。未設定の場合は `jp` が使われます。
+5. `jp`、`en`、`kr` サーバーを使う場合は、`New repository secret` を再度クリックして `UID` と `TOKEN` を追加します。
 6. `cn` サーバーを使う場合は、`New repository secret` を再度クリックして `EMAIL` と `PASSWORD` を追加します。値にはアカウントのメールアドレスと平文パスワードを入力します。
 7. `Settings > Actions > General` に移動し、`Workflow permissions` を `Read and write permissions` に変更します。
 8. 既定の実行時刻は毎日 JST 6:05 です。変更したい場合は `.github/workflows/main.yml` の `cron` を編集します。

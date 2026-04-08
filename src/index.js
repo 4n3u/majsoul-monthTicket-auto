@@ -45,6 +45,19 @@ const SERVER_CONFIGS = {
     oauthType: 22,
     currencyPlatforms: [1, 4, 5, 9, 12]
   },
+  kr: {
+    key: 'kr',
+    base: 'https://mahjongsoul.game.yo-star.com/kr/',
+    origin: 'https://mahjongsoul.game.yo-star.com',
+    routeLang: 'kr',
+    tag: 'kr',
+    loginMode: 'oauth_code',
+    oauthType: 23,
+    currencyPlatforms: [1, 4, 5, 9],
+    device: {
+      sale_platform: 'kr_web'
+    }
+  },
   cn: {
     key: 'cn',
     base: 'https://game.maj-soul.com/1/',
@@ -100,6 +113,10 @@ const buildRandv = () => {
 
 const hashCnPassword = password =>
   createHmac('sha256', 'lailai').update(password).digest('hex');
+const buildDevice = server => ({
+  ...DEFAULT_DEVICE,
+  ...server.device
+});
 
 function getServerConfig(serverKey) {
   const key = normalizeServerKey(serverKey || DEFAULT_SERVER);
@@ -331,6 +348,7 @@ async function openChannel(endpoint, origin, Wrapper) {
 async function createSessionForRoute(context, route, credentials) {
   const { server, proto, version, versionToForce } = context;
   const { uid, token, email, password } = credentials;
+  const device = buildDevice(server);
   console.log(`trying gateway route ${route.id}: ${route.endpoint}`);
   const channel = await openChannel(route.endpoint, server.origin, proto.Wrapper);
   const call = async (name, requestType, payload, responseType) => {
@@ -369,7 +387,7 @@ async function createSessionForRoute(context, route, credentials) {
         account: email,
         password: hashCnPassword(password),
         reconnect: false,
-        device: DEFAULT_DEVICE,
+        device,
         random_key: randomUUID(),
         client_version: { resource: version },
         gen_access_token: true,
@@ -429,7 +447,7 @@ async function createSessionForRoute(context, route, credentials) {
       type: server.oauthType,
       access_token: accessToken,
       reconnect: false,
-      device: DEFAULT_DEVICE,
+      device,
       random_key: randomUUID(),
       client_version: { resource: version },
       client_version_string: `web-${versionToForce}`,
@@ -551,7 +569,7 @@ function loadRuntimeConfig() {
       fail('EMAIL and PASSWORD environment variables are required for CN server.');
     }
   } else if (!uid || !token) {
-    fail('UID and TOKEN environment variables are required for JP/EN servers.');
+    fail('UID and TOKEN environment variables are required for JP/EN/KR servers.');
   }
 
   return {
