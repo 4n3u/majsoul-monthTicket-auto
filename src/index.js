@@ -3,6 +3,13 @@ require('dotenv').config();
 const { createHmac, randomUUID } = require('node:crypto');
 const protobuf = require('protobufjs/light');
 const WebSocket = require('ws');
+const {
+  buildClientMetadata,
+  buildOauth2AuthPayload,
+  buildOauth2LoginPayload,
+  buildPasswordLoginPayload,
+  parseProductVersion
+} = require('./client-metadata');
 
 const DEFAULT_SERVER = 'jp';
 const BUY_GREEN_GIFT = false;
@@ -13,14 +20,16 @@ const BUY_FROM_ZHP_LIMIT_REACHED_CODE = 2402;
 const DEFAULT_DEVICE = {
   platform: 'pc',
   hardware: 'pc',
-  os: 'linux',
-  os_version: 'linux',
+  os: 'Windows',
+  os_version: 'Windows 10',
   is_browser: true,
   software: 'Chrome',
   sale_platform: 'web',
+  hardware_vendor: 'Google Inc.',
+  model_number: 'Chrome',
   screen_width: 1920,
   screen_height: 1080,
-  user_agent: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36',
+  user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36',
   screen_type: 2
 };
 
@@ -155,6 +164,14 @@ async function requestJson(url, { body, headers, ...options } = {}) {
   return response.json();
 }
 
+async function requestText(url, options = {}) {
+  const response = await fetch(url, options);
+  if (!response.ok) {
+    fail(`Request failed ${response.status} ${response.statusText} for ${url}`);
+  }
+  return response.text();
+}
+
 function loadProtoTypes(liqiJson) {
   const root = protobuf.Root.fromJSON(liqiJson);
   return Object.fromEntries(
@@ -195,14 +212,24 @@ async function loadServerContext(server) {
   const versionUrl = new URL(buildUrl(base, 'version.json'));
   versionUrl.searchParams.set('randv', buildRandv());
 
-  const versionInfo = await requestJson(versionUrl);
+  const [versionInfo, indexHtml] = await Promise.all([
+    requestJson(versionUrl),
+    requestText(buildUrl(base, 'index.html'))
+  ]);
   must(versionInfo?.version, `Unexpected version payload: ${JSON.stringify(versionInfo)}`);
 
   const version = versionInfo.version;
-  const versionToForce = version.replace('.w', '');
   const codeDir = must(String(versionInfo.code || '').split('/')[0], 'Missing code directory for config fetch');
+  const productVersion = parseProductVersion(indexHtml);
+  const clientMetadata = buildClientMetadata({
+    productVersion,
+    resourceVersion: process.env.MS_RESOURCE_VERSION || process.env.RESOURCE_VERSION
+  });
 
   console.log(`version.json -> version=${version} force_version=${versionInfo.force_version} code=${versionInfo.code}`);
+  console.log(
+    `web client -> productVersion=${productVersion} resource=${clientMetadata.clientVersion.resource} client_version_string=${clientMetadata.clientVersionString}`
+  );
 
   const [config, resManifest] = await Promise.all([
     requestJson(buildUrl(base, `${codeDir}/config.json`)),
@@ -218,7 +245,7 @@ async function loadServerContext(server) {
   ).replace(/\/+$/, '');
 
   const [routes, liqiJson] = await Promise.all([
-    requestJson(buildRoutesUrl(gatewayUrl, version, routeLang)),
+    requestJson(buildRoutesUrl(gatewayUrl, clientMetadata.routeVersion, routeLang)),
     requestJson(buildUrl(base, `${liqiPrefix.replace(/^\/+/, '')}/res/proto/liqi.json`))
   ]);
 
@@ -238,7 +265,7 @@ async function loadServerContext(server) {
     base,
     routes: routesToTry,
     version,
-    versionToForce,
+    clientMetadata,
     proto: loadProtoTypes(liqiJson)
   };
 }
@@ -346,7 +373,7 @@ async function openChannel(endpoint, origin, Wrapper) {
 }
 
 async function createSessionForRoute(context, route, credentials) {
-  const { server, proto, version, versionToForce } = context;
+  const { server, proto, clientMetadata } = context;
   const { uid, token, email, password } = credentials;
   const device = buildDevice(server);
   console.log(`trying gateway route ${route.id}: ${route.endpoint}`);
@@ -383,19 +410,17 @@ async function createSessionForRoute(context, route, credentials) {
     const loginResponse = await call(
       '.lq.Lobby.login',
       proto.ReqLogin,
-      {
+      buildPasswordLoginPayload({
         account: email,
         password: hashCnPassword(password),
-        reconnect: false,
         device,
-        random_key: randomUUID(),
-        client_version: { resource: version },
-        gen_access_token: true,
-        currency_platforms: server.currencyPlatforms,
-        type: server.loginType,
-        client_version_string: `web-${versionToForce}`,
+        randomKey: randomUUID(),
+        clientVersion: clientMetadata.clientVersion,
+        clientVersionString: clientMetadata.clientVersionString,
+        currencyPlatforms: server.currencyPlatforms,
+        loginType: server.loginType,
         tag: server.tag
-      },
+      }),
       proto.ResOauth2Login
     );
     if (!loginResponse.account) {
@@ -416,12 +441,12 @@ async function createSessionForRoute(context, route, credentials) {
     const authResponse = await call(
       '.lq.Lobby.oauth2Auth',
       proto.ReqOauth2Auth,
-      {
-        type: server.oauthType,
-        code: token,
+      buildOauth2AuthPayload({
+        oauthType: server.oauthType,
+        token,
         uid,
-        client_version_string: `web-${versionToForce}`
-      },
+        clientVersionString: clientMetadata.clientVersionString
+      }),
       proto.ResOauth2Auth
     );
     accessToken = must(authResponse?.access_token, `oauth2Auth failed: ${JSON.stringify(authResponse)}`);
@@ -443,17 +468,16 @@ async function createSessionForRoute(context, route, credentials) {
   const loginResponse = await call(
     '.lq.Lobby.oauth2Login',
     proto.ReqOauth2Login,
-    {
-      type: server.oauthType,
-      access_token: accessToken,
-      reconnect: false,
+    buildOauth2LoginPayload({
+      oauthType: server.oauthType,
+      accessToken,
       device,
-      random_key: randomUUID(),
-      client_version: { resource: version },
-      client_version_string: `web-${versionToForce}`,
-      currency_platforms: server.currencyPlatforms,
+      randomKey: randomUUID(),
+      clientVersion: clientMetadata.clientVersion,
+      clientVersionString: clientMetadata.clientVersionString,
+      currencyPlatforms: server.currencyPlatforms,
       tag: server.tag
-    },
+    }),
     proto.ResOauth2Login
   );
   if (!loginResponse.account) {
@@ -595,7 +619,18 @@ async function run() {
   }
 }
 
-run().catch(error => {
-  console.error(error?.stack || error.message);
-  process.exitCode = 1;
-});
+if (require.main === module) {
+  run().catch(error => {
+    console.error(error?.stack || error.message);
+    process.exitCode = 1;
+  });
+}
+
+module.exports = {
+  createSession,
+  getServerConfig,
+  loadRuntimeConfig,
+  loadServerContext,
+  run,
+  runActions
+};

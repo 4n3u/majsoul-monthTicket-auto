@@ -12,9 +12,13 @@
 2. `F12`를 눌러 개발자 도구를 연 뒤 `Console` 탭으로 이동합니다.
 3. 아래 코드를 실행합니다.
    ```js
-   console.log(`UID: ${GameMgr.Inst.yostar_uid}\nTOKEN: ${GameMgr.Inst.yostar_accessToken}`);
+   {
+     const r = await test_sdk.Login({ openQuickLogin: true });
+     if (r.code !== 0) throw new Error(`${r.code}: ${r.msg}`);
+     console.log(`UID: ${r.data.LOGIN_UID}\nTOKEN: ${r.data.LOGIN_TOKEN}`);
+   }
    ```
-4. 출력된 `UID`와 `TOKEN` 값을 기록한 뒤, JP/EN/KR 서버 설정에 사용합니다.
+4. 출력된 `UID`와 `TOKEN` 값을 기록한 뒤, JP/EN/KR 서버 설정에 사용합니다. `test_sdk`가 없다고 나오면 게임 로딩이 끝난 뒤 다시 실행합니다.
 5. CN 서버는 계정의 이메일과 비밀번호를 기억하시면 됩니다.
 
 ## 설정 방법

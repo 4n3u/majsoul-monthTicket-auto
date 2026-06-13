@@ -12,9 +12,13 @@
 2. 按 `F12` 打开开发者工具，并切换到 `Console` 选项卡。
 3. 执行以下代码：
    ```js
-   console.log(`UID: ${GameMgr.Inst.yostar_uid}\nTOKEN: ${GameMgr.Inst.yostar_accessToken}`);
+   {
+     const r = await test_sdk.Login({ openQuickLogin: true });
+     if (r.code !== 0) throw new Error(`${r.code}: ${r.msg}`);
+     console.log(`UID: ${r.data.LOGIN_UID}\nTOKEN: ${r.data.LOGIN_TOKEN}`);
+   }
    ```
-4. 记录输出的 `UID` 和 `TOKEN`，用于 JP/EN/KR 服务器配置。
+4. 记录输出的 `UID` 和 `TOKEN`，用于 JP/EN/KR 服务器配置。如果提示 `test_sdk` 未定义，请等待游戏加载完成后重试。
 5. 如果使用 CN 服务器，则准备好账号邮箱和密码。所需的密码哈希会由脚本内部自动计算。
 
 ## 配置步骤

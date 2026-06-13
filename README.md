@@ -14,9 +14,13 @@ This project automates daily logins to Majsoul to achieve the attendance achieve
 2. Press `F12` and switch to the `Console` tab.
 3. Run the following code:
    ```js
-   console.log(`UID: ${GameMgr.Inst.yostar_uid}\nTOKEN: ${GameMgr.Inst.yostar_accessToken}`);
+   {
+     const r = await test_sdk.Login({ openQuickLogin: true });
+     if (r.code !== 0) throw new Error(`${r.code}: ${r.msg}`);
+     console.log(`UID: ${r.data.LOGIN_UID}\nTOKEN: ${r.data.LOGIN_TOKEN}`);
+   }
    ```
-4. Save the printed `UID` and `TOKEN` values for JP/EN/KR server setup.
+4. Save the printed `UID` and `TOKEN` values for JP/EN/KR server setup. If `test_sdk` is not defined yet, wait until the game finishes loading and try again.
 5. For CN, use your account email and password instead. The script calculates the required password hash internally.
 
 ## Setup Instructions
