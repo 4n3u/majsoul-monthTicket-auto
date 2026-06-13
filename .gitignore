@@ -2,6 +2,4 @@ node_modules/
 .env
 protocol.md
 
-game.mahjongsoul.com.har
-game.maj-soul.com.har
-mahjongsoul.game.yo-star.com.har
+*.har
