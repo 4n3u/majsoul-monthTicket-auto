@@ -2,7 +2,6 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 
 const {
-  DEFAULT_RESOURCE_VERSION,
   buildClientMetadata,
   buildPasswordLoginPayload,
   buildOauth2AuthPayload,
@@ -32,11 +31,11 @@ test('buildClientMetadata uses WebGL resource string and package product version
   });
 });
 
-test('buildClientMetadata falls back to current default resource version', () => {
+test('buildClientMetadata falls back to product version for WebGL resource version', () => {
   const metadata = buildClientMetadata({ productVersion: '4.0.7' });
 
-  assert.equal(metadata.clientVersion.resource, DEFAULT_RESOURCE_VERSION);
-  assert.equal(metadata.clientVersionString, `WebGL_2022-${DEFAULT_RESOURCE_VERSION}`);
+  assert.equal(metadata.clientVersion.resource, '4.0.7');
+  assert.equal(metadata.clientVersionString, 'WebGL_2022-4.0.7');
 });
 
 test('buildOauth2AuthPayload sends Yostar token as code with current client version string', () => {

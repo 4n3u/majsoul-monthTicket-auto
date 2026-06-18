@@ -1,5 +1,3 @@
-const DEFAULT_RESOURCE_VERSION = '0.16.193';
-
 function parseProductVersion(html) {
   const match = String(html || '').match(/productVersion\s*:\s*["']([^"']+)["']/);
   if (!match?.[1]) {
@@ -8,21 +6,19 @@ function parseProductVersion(html) {
   return match[1];
 }
 
-function buildClientMetadata({ productVersion, resourceVersion = DEFAULT_RESOURCE_VERSION }) {
+function buildClientMetadata({ productVersion, resourceVersion }) {
   if (!productVersion) {
     throw new Error('productVersion is required');
   }
-  if (!resourceVersion) {
-    throw new Error('resourceVersion is required');
-  }
+  const resource = resourceVersion || productVersion;
 
   return {
     routeVersion: productVersion,
     clientVersion: {
-      resource: resourceVersion,
+      resource,
       package: productVersion
     },
-    clientVersionString: `WebGL_2022-${resourceVersion}`
+    clientVersionString: `WebGL_2022-${resource}`
   };
 }
 
@@ -85,7 +81,6 @@ function buildPasswordLoginPayload({
 }
 
 module.exports = {
-  DEFAULT_RESOURCE_VERSION,
   buildClientMetadata,
   buildOauth2AuthPayload,
   buildOauth2LoginPayload,
